@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block app_content %}
+	<div class="jumbotron" style="background-color:#bbc4dc;">
+		<h2 class="display-4">All your eBooks in one place</h2>
+		<!-- <img src="../static/images/books.jpg" width="100%/5" class="rounded float-right" alt="..."> -->
+		<p class="lead">Actually own your eBooks as if they are on your bookshelf!</p>
+		<!-- <hr class="my-4">
+		<p>It uses utility classes for typography and spacing to space content out within the larger container.</p> -->
+		<p class="lead" style="padding-bottom: .875rem; padding-top: 3rem;">
+			<a class="btn btn-primary btn-lg" href="{{url_for('register')}}" style="background-color: #212430;" role="button">Register</a>
+			<a class="btn btn-primary btn-lg" href="{{url_for('demo')}}" style="background-color: #212430;" role="button">See Demo first!</a>
+		</p>
+	</div>
+	<div class="jumbotron" style="background-color:#72864a;;"><!-- pitch 1 -->
+		<h3 style="color: #fff;">A smart book-managing app</h3>
+		<p class="lead"  style="color: #fff; max-width: 60%;">
+			If you have a Zotero account with lots of books, Nuthatch creates a simple interface for you to browse, search, and organize them.<br/>
+		</p>
+	</div>
+	<div class="jumbotron" style="background-color:#d9d9e1;">  <!-- pitch 2 -->
+		<h3>With a smart recommendation system</h3>
+		<p class="lead" style="max-width: 60%;">
+			We developed a book recommendation system based on 6,000 user ratings of 200K books on Goodreads that tells you what to read next!
+		</p>
+	</div>
+
+	<!-- End Flash message location -->
+{% endblock %} <!-- end app_content-->
+
+
+
+
+

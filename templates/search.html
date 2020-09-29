@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+
+{% block searchbar %}
+<form class="form-inline my-2 my-lg-0 ml-auto justify-content-center" 
+	method="get" 
+	action="{{ url_for('search')}}">
+	{% if keyword %}
+  			<input class="form-control mr-sm-2 col-6" type="search" placeholder=Search aria-label="Search" name="keyword" id="searchbox" value={{keyword}}>
+  	{% else %}
+  			<input class="form-control mr-sm-2 col-6" type="search" placeholder="Search" aria-label="Search" name="keyword" id="searchbox">
+  	{% endif %}
+  			<button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+</form>
+{% endblock%}
+
+{% block app_content %}
+	<!-- <div style="float:right">Display: 
+		<a href="#" class="frame">6</a>|
+		<a href="#" class="frame">12</a>|
+		<a href="#" class="frame">48</a>|
+		<a href="#" class="frame">All</a>
+	</div> -->
+	<div class="card-deck w-100">
+	{% for book in booklist %}
+		<div class="card" style="flex: 1 0 15%; overflow: hidden; margin-bottom: 5vh; width: 190px; max-width: 190px; min-width: 190px; height: 480px;">
+		  <img class="card-img-top" src='../static/images/book-cover-1.jpg' alt="Card image cap">
+		  <div class="card-body">
+		  	<h6 class="card-title">
+		  		{% if book.title|length < 50 %}
+		  			{{ book.title}}
+		  		{% else %}
+		  		    {{ book.title[:50]  + '...' }}
+		  		{% endif %}
+		  	</h6>
+			<p class="card-subtitle mb-2 text-muted">
+				{% if book.author|length < 50 %}
+		  			{{ book.author}}
+		  		{% else %}
+		  		    {{ book.author[:40]  + '...' }}
+		  		{% endif %}
+			</p>
+			<p class="card-subtitle mb-2 text-muted">{{ book.publisher }}</p>
+			<p class="card-subtitle mb-2 text-muted">{{ book.year }}</p>
+		    <!-- <a href="#" class="btn btn-primary">Go somewhere</a> -->
+		  </div> <!-- end card-body -->
+		</div> <!-- end card div -->
+	{% endfor %}
+	</div> <!-- end card deck -->
+
+	<div class="footNav d-flex justify-content-center">
+    {% if current_user.zotero_sync_version != '' %}
+    <nav aria-label="Page navigation example">
+	  <ul class="pagination">
+	  	{% if page > 1 %}
+	    	<li class="page-item"><a class="page-link" href={{url_for('search', page=1, keyword=request.args.get('keyword'))}}>First</a></li>
+	    	<li class="page-item"><a id='prev' class="page-link" href={{url_for('search', page=page-1,keyword=request.args.get('keyword'))}}>←</a></li>
+	    {% else %}
+	    	<li class="page-item disabled"><a class="page-link" href={{url_for('search', page=1,keyword=request.args.get('keyword'))}}>First</a></li>
+	    	<li class="page-item disabled"><a class="page-link" href={{url_for('search', page=page-1,keyword=request.args.get('keyword'))}}>←</a></li>	    	
+	    {% endif %}
+	    {% for i in range((page-1)//10*10+1,(page-1)//10*10+11) %}
+	    	{% if i <= lastpage %}
+				{% if i != page %}
+					<li class="page-item"><a class="page-link" href={{url_for('search', page=i,keyword=request.args.get('keyword'))}}>{{i}}</a></li>
+				{% else %}
+					<li class="page-item disabled"><a class="page-link" href="#", page=i)}}>{{i}}</a></li>
+				{% endif %}
+			{% endif %}
+		{% endfor %}
+		{% if page < lastpage %}
+		<li class="page-item"><a id='next' class="page-link" href={{url_for('search', page=page+1,keyword=request.args.get('keyword'))}}>→</a></li>
+	    <li class="page-item"><a class="page-link" href={{url_for('search', page=lastpage,keyword=request.args.get('keyword'))}}>Last</a></li>
+	    {% endif %}
+		</ul>
+	</nav>
+	{% elif current_user.zoter_api == '' %}
+	    <a href={{url_for('auth')}}>Start Authentication Now!</a>
+	{% else %}
+		<span>You are in a weird situation.</span>
+	{% endif %}
+{% endblock %} <!-- end app_content-->
+
+{% block scripts %}
+	{{ super() }}
+	<script type="text/javascript">
+		// Keyboard navigation from page to page
+		$(document).keydown(function(e){
+				if ({{ page }} > 1) {
+					if (e.keyCode === 37) {
+						console.log('prev!');
+						document.getElementById('prev').click()
+						// $('#prev').trigger('click');
+					}
+				}
+				if ({{ page }} < {{ lastpage }}) {
+					if (e.keyCode === 39) {
+						console.log('next!');
+						// $('#next').trigger('click');
+						document.getElementById('next').click()
+					}
+				}
+		})
+		// document.getElementById('searchbox').placeholder = {{ request.args.get('keyword') }}
+	</script>
+
+
+
+
+
+
+{% endblock%} <!-- end head -->

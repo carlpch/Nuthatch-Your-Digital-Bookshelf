@@ -1,0 +1,140 @@
+{% extends 'bootstrap/base.html' %}
+	<!-- <link rel="stylesheet", href="../static/css/main.css"> -->
+
+
+{% block title %}
+{% if title == 'Nuthatch' %}
+<title>{{title}}</title>
+{% else %}
+<title>Nuthatch: {{title}}</title>
+{% endif %}
+{% endblock %}
+</head>
+	<body>
+{% block navbar %}
+
+
+		<div class="main">
+			<a href={{url_for('index')}}><img style="margin: 35px auto 0 auto;width: 40px;display: block;" src="../static/_images/logo.png" /></a>
+			<h1><a href={{url_for('index')}}>Nuthatch</a></h1>
+
+
+			<nav class="navbar navbar-default">
+				<ul style='text-align: right;'>
+					{% if current_user.is_authenticated %}
+					<li><a href={{url_for('logout')}}>Log out</a></li>
+					{% else %}
+					<li><a href={{url_for('login')}}>Log in</a></li>
+					{% endif %}
+				</ul>
+				<div class="searchbar">
+					<input type="text" value="">
+					<div class="searchicon">Search</div>
+					<div class="conditions">
+						<div class='condition-nav' id='condition1'>
+							<button class="btn" id='lang-btn'>All Lanugages</button>
+							<div class="dropdown" id="dd-lang">
+								<div>
+									<input type="checkbox" id="language1" class="language-check" value="en" checked>
+									<label for="language1">English</label>
+								</div>
+								<div>
+									<input type="checkbox" id="language2" class="language-check" value="zh-TW" checked>
+									<label for="language2">Traditional Chinese</label>
+								</div>
+								<div>
+									<input type="checkbox" id="language3" class="language-check" value="ja" checked>
+									<label for ="language3">Japanese</label>
+								</div>
+								<div>
+									<input type="checkbox" id="language4" class="language-check" value="kr" checked>
+									<label for ="language4">Korean</label>
+								</div>
+								<div>
+									<input type="checkbox" id="language-all" class="language-check" value="all"  checked>
+									<label for ="language-all">All</label>
+								</div>
+							</div>
+						</div>
+						<div class='condition-nav'>
+							<button class="btn", id='type-btn'>Type: All</button>
+							<div class="dropdown" id="dd-type">
+								<div>
+									<input type="checkbox" id="type1" class="type-check" value="book" checked>
+									<label for="type1">Book</label>
+								</div>
+								<div>
+									<input type="checkbox" id="type2" class="type-check" value="mag" checked>
+									<label for="type2">Magazine</label>
+								</div>
+							</div>
+						</div>
+						<div class='condition-nav'>
+							<button class="btn", id='attachment-btn' >PDF Books Only</button>
+							<div class="dropdown" id="dd-attachment">
+								<div>
+									<input type="checkbox" id="has-cover" class="cover-check"  value="cover" checked>
+									<label for="has-cover">Show only books with PDFs</label> 
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<br style="float: both;">
+			</nav>
+
+{% endblock %}
+
+{% block content %}
+			<div style="float:left; text-align: left;" class="container">
+				You have <span class="bookTotal"></span> books in the Zotero library.
+				Showing item <span class="fromItem"></span>-<span class="toItem"></span>.
+			</div>
+
+			<!-- Flash message location -->
+			{% with messages = get_flashed_messages() %}
+            {% if messages %}
+	        <ul style="position: absolute; top: 0; left: 0; text-align: center; width: 100%;
+	        background:#fbf2d4; color: #666; padding: 0px;">
+	            {% for message in messages %}
+	            <li>{{ message }}</li>
+	            {% endfor %}
+	        </ul>
+	        {% endif %}
+	        {% endwith %}
+			<!-- End Flash message location -->
+			{% block app_content %}{% endblock %}
+
+		</div>
+		<div class='footer'>Carl Pi-Cheng Huang, Copyright 2019</div>
+{% endblock %}
+	</body>
+</html>
+
+
+
+
+{% block scripts %}
+<script>
+window.addEventListener("keyup", function pressLeft(e) {
+	if (event.keyCode === 37) {
+	// Cancel the default action, if needed
+	e.preventDefault();
+	// Trigger the button element with a click
+	prev = document.querySelector('.prev');
+	if (prev != undefined){
+	prev.click();
+}
+}})
+window.addEventListener("keyup", function pressRight(e) {
+	if (event.keyCode === 39) {
+	// Cancel the default action, if needed
+	e.preventDefault();
+	// Trigger the button element with a click
+	next = document.querySelector('.next');
+	if (next != undefined){
+	next.click();
+}
+}})
+</script>
+{% endblock %}

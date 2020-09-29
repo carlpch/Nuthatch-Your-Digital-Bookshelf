@@ -1,0 +1,284 @@
+# imports
+import sqlite3
+from flask import Flask, request, session, g, redirect, url_for, \
+                  abort, render_template, flash, jsonify
+from rauth import OAuth1Service
+from rauth.utils import parse_utf8_qsl 
+from tornado.web import HTTPError # unknown
+from pyzotero import zotero
+from config import Config
+import math
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_login import LoginManager, login_user, logout_user, current_user, login_required
+from werkzeug.urls import url_parse
+import book # book.py
+from book import get_authors, localized_author_name, get_language, get_auth_url
+from flask_bootstrap import Bootstrap
+import pandas as pd
+
+zoteroAuth = OAuth1Service(
+        name='zotero',
+        consumer_key='7e808de4b1f9ca43177f',
+        consumer_secret='805a84c668cb0920739b',
+        request_token_url='https://www.zotero.org/oauth/request',
+        access_token_url='https://www.zotero.org/oauth/access',
+        authorize_url='https://www.zotero.org/oauth/authorize',
+        base_url='https://api.zotero.org')
+request_token = ''
+request_token_secret = ''
+
+# create and initialize app
+app = Flask(__name__)
+app.config.from_object(Config)
+db = SQLAlchemy(app)
+migrate = Migrate(app,db)
+login = LoginManager(app)
+login.login_view = 'login'
+bootstrap = Bootstrap(app)
+import models
+from forms import LoginForm, RegistrationForm
+from models import User, Book
+from explore import load_embedding, load_bookinfo, showneighbors
+
+
+# connect to database
+def connect_db():
+	rv = sqlite3.connect(app.config['DATABASE'])
+	rv.row_factory = sqlite3.Row #まだ意味が分からない
+	return rv
+# open database connection
+def get_db():
+	if not hasattr(g, 'sqlite_db'):
+		g.sqlite_db = connect_db()
+	return g.sqlite_db
+
+# create database
+def init_db():
+	with app.app_context():
+		db = get_db()
+		with app.open_resource('schema.sql', mode='r') as f:
+			db.cursor().executescript(f.read())
+		db.commit()
+# close database connection
+@app.teardown_appcontext
+def close_db(error):
+    if hasattr(g, 'sqlite_db'):
+        g.sqlite_db.close()
+
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        return bookshelf()
+    else:
+        return render_template('index.html', title='Nuthatch')
+
+@app.route('/bookshelf')
+@login_required
+def bookshelf():
+    if current_user.zoter_api != '' and current_user.zotero_sync_version != '':
+        page = request.args.get('page', 1, type=int)
+        books = current_user.user_books().paginate(page ,app.config['POSTS_PER_PAGE'], False)
+        return render_template('bookshelf.html', title='My Bookshelf', 
+            booklist=books.items, 
+            page=page, 
+            lastpage = (len(current_user.user_books().all())//app.config['POSTS_PER_PAGE'])+1)
+    elif current_user.zoter_api != '':
+        # flash('{}, you have Zotero authentication, but have not synced your data!'.format(current_user.username))
+        return redirect(url_for('sync'))
+    else:
+        flash('{}, you might want to complete Zotero authentication for your books to be displayed here!'.format(current_user.username))
+    return render_template('bookshelf.html', title='Nuthatch')
+
+@app.route('/auth')
+def auth():
+    if current_user.is_authenticated:
+        if current_user.zoter_api == '':
+            flash('Hi! {}, pease visit <a href="{}" target="new">here</a> for authentication.'.format(current_user.username, get_auth_url()))
+            return redirect(url_for('bookshelf'))
+        else:
+            flash('You already have an API key!')
+            return redirect(url_for('sync'))
+
+@app.route('/auth_callback')
+def auth_cb():
+    if not current_user.is_authenticated:
+        flash('Alert: Cannot complete authentication. User is not logged in.')
+    else:
+        verifier = request.args.get('oauth_verifier')
+        text = 'Call back comes here, verifier is {}'.format(verifier)
+        access_token_response = zoteroAuth.get_raw_access_token(
+                session['request_token'], session['request_token_secret'],
+                data={'oauth_verifier': verifier})
+        access_info = parse_utf8_qsl(access_token_response.content)
+        current_user.zotero_userid = access_info['userID']
+        current_user.zotero_username = access_info['username']
+        current_user.zoter_api = access_info['oauth_token_secret']
+        db.session.commit()
+    flash('Success! We successfullly received API key from Zoter user {}'.format(current_user.zotero_username))
+    return redirect(url_for('bookshelf'))
+
+@app.route('/login', methods = ['GET','POST'])
+def login():
+    if current_user.is_authenticated:
+        # flash('You are already logged in, {}'.format(current_user.username))
+        return redirect(url_for('bookshelf'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        # flash('Login requested for user {}, remember_me ={}'.format(
+        #     form.username.data, form.remember_me.data))
+        user = User.query.filter_by(username=form.username.data).first()
+        if user is None or not user.check_password(form.password.data):
+            flash('Invalid username or password')
+            return redirect(url_for('login'))
+        login_user(user, remember=form.remember_me.data)
+        next_page = request.args.get('next')
+        if not next_page or url_parse(next_page).netloc != '':
+            next_page = url_for('bookshelf')
+        return redirect(next_page)
+    return render_template('login.html', title="Sign In", form=form)
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+@app.route('/register', methods = ['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('bookshelf'))
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        user = User(username=form.username.data, email=form.email.data)
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash('Congratulations, you are now a registered user!')
+        return redirect(url_for('login'))
+    return render_template('register.html', title='Register', form=form)
+
+@app.route('/sync')
+@login_required
+def sync():
+    zotero_sync = zotero.Zotero(current_user.zotero_userid, 'user', current_user.zoter_api)
+    last_modified_version = zotero_sync.last_modified_version()
+    if last_modified_version == current_user.zotero_sync_version:
+        flash('You have the latest books on Zotero.')
+        return redirect(url_for('bookshelf'))
+    else:
+        flash('Updating your book data now...')
+        zotero_books = zotero_sync.everything(zotero_sync.items(itemType='book'))
+        zotero_books = [i['data'] for i in zotero_books]
+        books = []
+
+        for i in zotero_books:
+            authors = get_authors(i)
+            # cover, short_pdf_path = get_cover(i)
+            language = get_language(i)
+
+            # list approach
+            new_dict_item = {
+            'zotero_key': i['key'],
+            'title': i['title'],
+            'author': authors,
+            'publisher': i['publisher'],
+            'year': i['date'],
+            'isbn': i['ISBN'],
+            'user_id': current_user.username}
+            books += [new_dict_item]
+
+            # SQL Alchemy approach
+            newbook = Book(
+                zotero_key=i['key'],
+                title=i['title'],
+                author=authors,
+                publisher=i['publisher'],
+                year=i['date'],
+                isbn=i['ISBN'], 
+                language = language,
+                user_id=current_user.username)            
+            db.session.add(newbook)
+        
+        current_user.zotero_sync_version = last_modified_version
+        db.session.commit()
+
+    return redirect(url_for('bookshelf'))
+
+@app.route('/explore')
+@login_required
+def explore():
+    if current_user.user_books():
+        user_books = current_user.user_books().all()
+        user_titles = [i.title for i in user_books]
+        bookinfo = load_bookinfo()
+        # Begin Matching
+        bookinfo['matched'] = bookinfo.bookName.str.lower().isin([x.lower() for x in user_titles])
+        if sum(bookinfo.matched) <1 :
+            flash("Sorry! Cannot match your books to our data. ")
+            return render_template('explore.html', title='Explore', emb=embedding)
+        else:
+            matched_books = bookinfo[bookinfo['matched']].reset_index()
+            matched_books = matched_books.drop(['Unnamed: 0','index','matched'],axis=1)
+            flash('Click on any of the book below to see our recommendations! 😊')
+            return render_template('explore.html', title='Explore', matched_books=matched_books)
+    else:
+        flash('You got no books!')
+        return render_template('explore.html', title='Explore')
+
+@app.route('/recommend/<int:bookID>', methods=['GET','POST'])    #int has been used as a filter that only integer will be passed in the url otherwise it will give a 404 error
+def recommend(bookID):
+    title = request.args.get('title')
+    embedding = load_embedding()
+    bookinfo = load_bookinfo()
+    results = showneighbors(bookID, embedding, bookinfo).to_html()
+    flash('Here are five other books based on <em>{}</em>'.format(title))
+    return render_template('recommend.html', title='Book Recommendation', results = results)
+
+@app.route('/_get_suggestions', methods=['POST'])
+def get_suggestions():
+    bookID = int(request.form['bookID'])
+    embedding = load_embedding()
+    bookinfo = load_bookinfo()
+    results = showneighbors(bookID, embedding, bookinfo)
+    return results.to_json(orient='records')
+
+@app.route('/search', methods=['GET'])
+@login_required
+def search():
+    keyword = request.args.get('keyword')
+    if current_user.zoter_api != '' and current_user.zotero_sync_version != '':
+        page = request.args.get('page', 1, type=int)
+        key_phrase = "%{}%".format(keyword)
+        matched_books = current_user.user_books().filter(Book.title.like(key_phrase))
+        results = matched_books.paginate(page ,app.config['POSTS_PER_PAGE'], False)
+        return render_template('search.html', title='Search Results', 
+            booklist=results.items, 
+            page=page, 
+            lastpage = (len(matched_books.all())//app.config['POSTS_PER_PAGE'])+1, 
+            keyword = keyword)
+
+@app.route('/demo')
+def demo():
+    if current_user.is_authenticated:
+        return redirect(url_for('bookshelf'))
+    else:
+        user = User.query.filter_by(username='demo').first()
+        login_user(user, remember=False)
+        flash('Welcome to the demo page!')
+        return redirect(url_for('bookshelf'))
+
+
+
+
+@app.shell_context_processor
+def make_shell_context():
+    return {'db': db, 'User': User, 'Book': Book}
+
+# @app.before_request
+# def before_request():
+#     if current_user.is_authenticated:
+#         #current_user.last_seen = datetime.utcnow() db.session.commit()
+
+if __name__ == '__main__':
+    init_db()
+    app.run()
