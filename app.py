@@ -1,5 +1,7 @@
 # imports
 import sqlite3
+import math
+import pandas as pd
 from flask import Flask, request, session, g, redirect, url_for, \
                   abort, render_template, flash, jsonify
 from rauth import OAuth1Service
@@ -7,7 +9,6 @@ from rauth.utils import parse_utf8_qsl
 from tornado.web import HTTPError # unknown
 from pyzotero import zotero
 from config import Config
-import math
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, login_user, logout_user, current_user, login_required
@@ -15,18 +16,6 @@ from werkzeug.urls import url_parse
 import book # book.py
 from book import get_authors, localized_author_name, get_language, get_auth_url
 from flask_bootstrap import Bootstrap
-import pandas as pd
-
-zoteroAuth = OAuth1Service(
-        name='zotero',
-        consumer_key='7e808de4b1f9ca43177f',
-        consumer_secret='805a84c668cb0920739b',
-        request_token_url='https://www.zotero.org/oauth/request',
-        access_token_url='https://www.zotero.org/oauth/access',
-        authorize_url='https://www.zotero.org/oauth/authorize',
-        base_url='https://api.zotero.org')
-request_token = ''
-request_token_secret = ''
 
 # create and initialize app
 app = Flask(__name__)
@@ -36,16 +25,27 @@ migrate = Migrate(app,db)
 login = LoginManager(app)
 login.login_view = 'login'
 bootstrap = Bootstrap(app)
+
 import models
-from forms import LoginForm, RegistrationForm
 from models import User, Book
+from forms import LoginForm, RegistrationForm
 from explore import load_embedding, load_bookinfo, showneighbors
 
+zoteroAuth = OAuth1Service(
+        name='zotero',
+        consumer_key= app.config['ZOTERO_CONSUMER_KEY'],
+        consumer_secret= app.config['ZOTERO_CONSUMER_SECRET'],
+        request_token_url='https://www.zotero.org/oauth/request',
+        access_token_url='https://www.zotero.org/oauth/access',
+        authorize_url='https://www.zotero.org/oauth/authorize',
+        base_url='https://api.zotero.org')
+request_token = ''
+request_token_secret = ''
 
 # connect to database
 def connect_db():
 	rv = sqlite3.connect(app.config['DATABASE'])
-	rv.row_factory = sqlite3.Row #まだ意味が分からない
+	rv.row_factory = sqlite3.Row
 	return rv
 # open database connection
 def get_db():
