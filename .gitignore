@@ -1,4 +1,5 @@
 __pycache__/
+migrations/
 venv/
 *.hdf5
 *.db
