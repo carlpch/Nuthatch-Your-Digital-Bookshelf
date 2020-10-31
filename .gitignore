@@ -2,6 +2,7 @@ __pycache__/
 venv/
 *.hdf5
 *.db
+*.ini
 .DS_Store
 config.py
 
