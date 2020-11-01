@@ -1,11 +1,3 @@
-# from flask_wtf import FlaskForm
-# from wtforms import StringField, PasswordField, BooleanField, SubmitField
-# from wtforms.validators import ValidationError, DataRequired, Email, EqualTo
-# from models import User
-from pyzotero import zotero
-from rauth import OAuth1Service
-from flask import session, flash, url_for, redirect
-
 def get_authors(i):
     author_number = len(i['creators'])
     author_list = i['creators']
@@ -34,7 +26,6 @@ def get_authors(i):
                 last=author_list[n].get('lastName'),
                 language=language)
     return output
-
 
 def get_cover(b):
     has_cover = False
