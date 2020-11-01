@@ -14,7 +14,7 @@ from flask_migrate import Migrate
 from flask_login import LoginManager, login_user, logout_user, current_user, login_required
 from werkzeug.urls import url_parse
 import book # book.py
-from book import get_authors, localized_author_name, get_language, get_auth_url
+from book import get_authors, localized_author_name, get_language
 from flask_bootstrap import Bootstrap
 
 # create and initialize app
@@ -94,6 +94,14 @@ def bookshelf():
 def auth():
     if current_user.is_authenticated:
         if current_user.zoter_api == '':
+
+            def get_auth_url():
+                request_token, request_token_secret = zoteroAuth.get_request_token()
+                session['request_token'] = request_token
+                session['request_token_secret'] = request_token_secret
+                auth_url = zoteroAuth.get_authorize_url(request_token)
+                return auth_url
+
             flash('Hi! {}, pease visit <a href="{}" target="new">here</a> for authentication.'.format(current_user.username, get_auth_url()))
             return redirect(url_for('bookshelf'))
         else:

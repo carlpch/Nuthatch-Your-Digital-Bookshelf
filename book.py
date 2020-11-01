@@ -6,25 +6,6 @@ from pyzotero import zotero
 from rauth import OAuth1Service
 from flask import session, flash, url_for, redirect
 
-zoteroAuth = OAuth1Service(
-        name='zotero',
-        consumer_key='7e808de4b1f9ca43177f',
-        consumer_secret='805a84c668cb0920739b',
-        request_token_url='https://www.zotero.org/oauth/request',
-        access_token_url='https://www.zotero.org/oauth/access',
-        authorize_url='https://www.zotero.org/oauth/authorize',
-        base_url='https://api.zotero.org')
-
-request_token = ''
-request_token_secret = ''
-
-def get_auth_url():
-	request_token, request_token_secret = zoteroAuth.get_request_token()
-	session['request_token'] = request_token
-	session['request_token_secret'] = request_token_secret
-	auth_url = zoteroAuth.get_authorize_url(request_token)
-	return auth_url
-
 def get_authors(i):
     author_number = len(i['creators'])
     author_list = i['creators']
