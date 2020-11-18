@@ -25,15 +25,22 @@ class User(UserMixin, db.Model):
 
 	def user_books(self):
 		#return Book.query.filter(Book.user_id == self.username).all() # returns a list
-		return Book.query.filter(Book.user_id == self.username) # returns a query item for pagination
+		return Book.query.filter(Book.user_id == self.username) 
 
 	def has_books(self):
 		#return Book.query.filter(Book.user_id == self.username).all() # returns a list
 		return len(Book.query.filter(Book.user_id == self.username)) > 0 # returns a query item for pagination
 
+	def dup_item(self, z_id):
+		dup = Book.query.filter(Book.user_id == self.username, Book.zotero_key == z_id).first()
+		if dup:
+			return dup
+		else:
+			return None
+
 class Book(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
-	zotero_key = db.Column(db.String(140))
+	zotero_key = db.Column(db.String(140), unique=True)
 	title = db.Column(db.String(140))
 	author = db.Column(db.String(140))
 	publisher = db.Column(db.String(140))
@@ -41,10 +48,13 @@ class Book(db.Model):
 	year = db.Column(db.Integer)
 	isbn = db.Column(db.Integer)
 	user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-	timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+	timestamp = db.Column(db.DateTime, index=True, default = datetime.utcnow)
 
 	def __repr__(self):
 		return '<Book {}>'.format(self.title)
+
+	
+
 
 @login.user_loader
 def load_user(id):
