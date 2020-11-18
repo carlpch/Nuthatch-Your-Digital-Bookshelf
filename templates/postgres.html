@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block app_content %}
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Title</th>
+      <th scope="col">Author</th>
+      <th scope="col">Year</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for num, book in matched_books.iterrows() %}
+	    <!-- title  author  publisher year -->
+		    <tr>
+		      <th scope="row">{{ num+1 }}</th>
+          <td><a href="#" class="toggle-modal" id={{ book['nuthatch_id'] }}>{{ book['title'] }}</a></td>
+		      <td>{{ book['author'] }}</td>
+		      <td>{{ book['year'] }}</td>
+		    </tr>
+		
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="modal fade bd-example-modal-xl" tabindex="-1" role="dialog" aria-labelledby="myExtraLargeModalLabel" aria-hidden="true" id="bookModal">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6></h6>
+      </div>
+      <div class="modal-body d-flex justify-content-center"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+$('.toggle-modal').click(function(e){
+  e.preventDefault(); // so the scoll position will not reset once a user opens a Modal
+  $('#bookModal').modal('show');
+  $('.modal-header h6').html("Five book recommendations based on <em>" + e.target.text + "</em>");
+  $('.modal-body').html('<div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div>');
+  $.post('_top5', {
+    nuthatch_id: e.target.id
+  }).done(function(response) {
+    var data = JSON.parse(response);
+    // console.log(data);
+    $('.modal-body').empty().append('<table>')
+    $('.modal-body table').addClass('table')
+    // $('.modal-body .table').append('<caption>Prediction by a Collaborative Filtering Model through Tensorflow.</caption>')
+    $('.modal-body .table').append('<tbody>');
+    $('.modal-body .table').append('<thead><tr><th scope="col">Title</th><th scope="col">Year</th></tr></thead>')
+    $.each(data, function(i, item) {
+      // var nuthatch_id = $("<td></td>").text(item.nuthatch_id);
+      var title_td = $("<td></td>").text(item.title);
+      var year_td = $("<td></td>").text(item.year);
+      // // var author_td = $("<td></td>").text(item.bookAuthor); 
+      $('.modal-body tbody').append('<tr>').append(title_td, year_td);
+      // $('.modal-body tbody').append('<tr>').append(nuthatch_id);
+      console.log(item.nuthatch_id);
+      console.log('bobo!!');
+    })
+    // $('.modal-body').text(data['sim_score'][2]);
+  }).fail(function(){
+    $('.modal-body').text("error");
+  });
+});
+
+</script>
+{% endblock %}
+
+
+
+
