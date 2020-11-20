@@ -40,7 +40,7 @@ bootstrap = Bootstrap(app)
 import models
 from models import User, Book
 from forms import LoginForm, RegistrationForm
-from explore import load_embedding, showneighbors, postgres_query, load_embedding2, find_close_books
+from explore import load_embedding, showneighbors, postgres_query, load_embedding2, find_close_books, load_bookinfo
 
 zoteroAuth = OAuth1Service(
         name='zotero',
@@ -88,6 +88,7 @@ def index():
 @login_required
 def bookshelf():
     if current_user.zoter_api and current_user.zotero_sync_version:
+        print('user has everything to use bookshelf')
 
         page = request.args.get('page', 1, type=int)
         books = current_user.user_books().order_by(Book.timestamp.desc())
@@ -99,6 +100,7 @@ def bookshelf():
             lastpage = (len(current_user.user_books().all())//app.config['POSTS_PER_PAGE'])+1)
 
     elif current_user.zoter_api != '':
+        print('user has api key but no data, going to sync. current_user.zotero_sync_version = {}'.format(current_user.zotero_sync_version))
         # flash('{}, you have Zotero authentication, but have not synced your data!'.format(current_user.username))
         return redirect(url_for('sync'))
     else:
@@ -193,13 +195,13 @@ def sync():
     if current_user.zoter_api:
         try:
             zotero_sync = zotero.Zotero(current_user.zotero_userid, 'user', current_user.zoter_api)
-            last_modified_version = zotero_sync.last_modified_version()
+            last_modified_version = str(zotero_sync.last_modified_version())
         except:
             print('Error, cannot connect to Zotero with user API')
             raise
 
-        # if last_modified_version == current_user.zotero_sync_version:
-        if False:
+        if last_modified_version == current_user.zotero_sync_version:
+        # if False:
 
             flash('You have the latest books on Zotero.')
             return redirect(url_for('bookshelf'))
@@ -217,16 +219,8 @@ def sync():
                 if current_user.dup_item(i['key']):
 
                     dup = current_user.dup_item(i['key'])
-                    # old_time = dup.timestamp
-                    # new_time = parse(i['dateModified'])
                     db.session.delete(dup)
                     db.session.commit()
-                    
-                    # if new_time > old_time:
-                    #     db.session.delete(dup)
-
-                    # else:
-                    #     db.session.delete(dup)                        
 
                 new_book = Book(
                     zotero_key = i['key'],
@@ -243,10 +237,14 @@ def sync():
                 db.session.add(new_book)
                 db.session.commit()
             
+            print("loop finished, going to shelf, hazu... last_modified_version = {}".format(last_modified_version))
             current_user.zotero_sync_version = last_modified_version
-            # db.session.commit()
+            db.session.commit()
 
-    return redirect(url_for('bookshelf'))
+            # print('work? see below:')
+            # print(current_user.zotero_sync_version)
+            return redirect(url_for('bookshelf'))
+
 
 @app.route('/explore')
 @login_required
