@@ -124,7 +124,7 @@ def auth():
                 auth_url = zoteroAuth.get_authorize_url(request_token)
                 return auth_url
 
-            flash('Hi! {}, pease visit <a href="{}" target="new">here</a> for authentication.'.format(current_user.username, get_auth_url()))
+            flash('Hi! {}, please visit <a href="{}" target="new">here</a> for authentication.'.format(current_user.username, get_auth_url()))
             return redirect(url_for('bookshelf'))
         
         else:
