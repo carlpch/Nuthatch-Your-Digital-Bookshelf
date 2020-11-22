@@ -2,6 +2,8 @@ from app import db
 from models import User, Book
 
 bobofish = User.query.get(1)
+bobofish.check_latest()
+
 b = bobofish.user_books()
 
 
@@ -19,3 +21,6 @@ b = bobofish.user_books()
 Book.query.filter(Book.user_id == self.username) 
 
 Book.query.filter(Book.user_id == 'bobofish', Book.zotero_key == 'ddd')
+
+
+Book.query.order_by(Book.timestamp.desc()).first().timestamp

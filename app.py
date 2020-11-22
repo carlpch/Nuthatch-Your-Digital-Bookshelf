@@ -20,8 +20,6 @@ from datetime import datetime
 import json 
 from dateutil.parser import parse
 
-
-# create and initialize app
 # create an app instance
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -58,6 +56,7 @@ def connect_db():
 	rv = sqlite3.connect(app.config['DATABASE'])
 	rv.row_factory = sqlite3.Row
 	return rv
+
 # open database connection
 def get_db():
 	if not hasattr(g, 'sqlite_db'):
@@ -71,6 +70,7 @@ def init_db():
 		with app.open_resource('schema.sql', mode='r') as f:
 			db.cursor().executescript(f.read())
 		db.commit()
+
 # close database connection
 @app.teardown_appcontext
 def close_db(error):
@@ -194,55 +194,20 @@ def sync():
     # 
     if current_user.zoter_api:
         try:
-            zotero_sync = zotero.Zotero(current_user.zotero_userid, 'user', current_user.zoter_api)
-            last_modified_version = str(zotero_sync.last_modified_version())
+            _, latest_version = current_user.zotero_connect()
+
         except:
             print('Error, cannot connect to Zotero with user API')
             raise
 
-        if last_modified_version == current_user.zotero_sync_version:
-        # if False:
-
-            flash('You have the latest books on Zotero.')
+        if latest_version == current_user.zotero_sync_version:
+            flash('Your Zotero book data is up to date.')
             return redirect(url_for('bookshelf'))
 
         else:
-            flash('Updating your book data now...')
-
-            zotero_books = zotero_sync.everything(zotero_sync.items(itemType='book'))
-            zotero_books = [i['data'] for i in zotero_books]
-            print('we found {} books in your Zotero. You have {} in Nuthatch.'.format(len(zotero_books), len(current_user.user_books().all())))
-            # using loop to update new books:
-
-            for i in zotero_books:
-
-                if current_user.dup_item(i['key']):
-
-                    dup = current_user.dup_item(i['key'])
-                    db.session.delete(dup)
-                    db.session.commit()
-
-                new_book = Book(
-                    zotero_key = i['key'],
-                    title = i['title'],
-                    author = get_authors(i),
-                    publisher = i['publisher'],
-                    year= i['date'],
-                    isbn= i['ISBN'], 
-                    language = get_language(i),
-                    user_id = current_user.username,
-                    timestamp = parse(i['dateModified'])
-                    )
-
-                db.session.add(new_book)
-                db.session.commit()
-            
-            print("loop finished, going to shelf, hazu... last_modified_version = {}".format(last_modified_version))
-            current_user.zotero_sync_version = last_modified_version
-            db.session.commit()
-
-            # print('work? see below:')
-            # print(current_user.zotero_sync_version)
+            # flash('Updating your book data now... zot version = {}, local = {}'.format(latest_version, current_user.zotero_sync_version))
+            flash('Updating your book data now...'.format(latest_version, current_user.zotero_sync_version))
+            zotero_books = current_user.zotero_full_sync(db = db)
             return redirect(url_for('bookshelf'))
 
 
